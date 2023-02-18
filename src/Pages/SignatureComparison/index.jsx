@@ -1,64 +1,57 @@
 import React, { useState, useEffect } from 'react';
+import SignatureCanvas from 'react-signature-canvas';
 import * as tf from '@tensorflow/tfjs';
-import * as knn from '@tensorflow-models/knn-classifier';
-import Dropzone from 'react-dropzone';
+import * as knnClassifier from '@tensorflow-models/knn-classifier';
 
 const SignatureComparison = () => {
   const [model, setModel] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [signature, setSignature] = useState(null);
-  const [classification, setClassification] = useState(null);
+  const [isTrueSignature, setIsTrueSignature] = useState(null);
+
+  const sigCanvasRef1 = useRef();
+  const sigCanvasRef2 = useRef();
 
   useEffect(() => {
-    async function loadModel() {
-      const loadedModel = await knn.create();
-      setModel(loadedModel);
-      setLoading(false);
-    }
+    const loadModel = async () => {
+      const model = await knnClassifier.create();
+      await model.load('model.json');
+      setModel(model);
+    };
+
     loadModel();
   }, []);
 
-  async function handleDrop(files) {
-    const file = files[0];
-    const img = new Image();
-    img.onload = async () => {
-      const data = tf.browser.fromPixels(img);
-      const resized = tf.image.resizeBilinear(data, [100, 100]).toFloat();
-      const tensor = tf.div(resized, tf.scalar(255));
-      const features = model.predict(tensor.reshape([-1, 100, 100, 3]));
-      const res = await model.predictClass(features);
-      setClassification(res.label);
-    };
-    img.src = URL.createObjectURL(file);
-    setSignature(file);
-  }
+  const compareSignatures = () => {
+    const sigData1 = sigCanvasRef1.current.toDataURL().slice(22);
+    const sigData2 = sigCanvasRef2.current.toDataURL().slice(22);
+
+    const prediction1 = model.predictClass(tf.browser.fromPixels(atob(sigData1)).reshape([1, 100, 100, 4]));
+    const prediction2 = model.predictClass(tf.browser.fromPixels(atob(sigData2)).reshape([1, 100, 100, 4]));
+
+    if (prediction1.label === prediction2.label) {
+      setIsTrueSignature(true);
+    } else {
+      setIsTrueSignature(false);
+    }
+  };
 
   return (
     <div>
-      <h1>Comparação de Assinaturas</h1>
-      {loading ? (
-        <p>Carregando modelo...</p>
-      ) : (
-        <>
-          <p>Arraste e solte uma imagem de assinatura para comparar</p>
-          <Dropzone onDrop={handleDrop}>
-            {({ getRootProps, getInputProps }) => (
-              <div {...getRootProps()}>
-                <input {...getInputProps()} />
-                {signature ? (
-                  <img src={URL.createObjectURL(signature)} alt="Assinatura" />
-                ) : (
-                  <p>Clique ou arraste uma imagem aqui para carregar</p>
-                )}
-              </div>
-            )}
-          </Dropzone>
-          {classification !== null && (
-            <p>
-              A assinatura é {classification === 0 ? 'falsa' : 'verdadeira'}
-            </p>
-          )}
-        </>
+      <div>
+        <h2>Assinatura 1</h2>
+        <SignatureCanvas canvasProps={{ width: 200, height: 100, className: 'sigCanvas' }} ref={sigCanvasRef1} />
+      </div>
+
+      <div>
+        <h2>Assinatura 2</h2>
+        <SignatureCanvas canvasProps={{ width: 200, height: 100, className: 'sigCanvas' }} ref={sigCanvasRef2} />
+      </div>
+
+      <button onClick={compareSignatures}>Comparar Assinaturas</button>
+
+      {isTrueSignature !== null && (
+        <div>
+          {isTrueSignature ? <p>As assinaturas são iguais.</p> : <p>As assinaturas são diferentes.</p>}
+        </div>
       )}
     </div>
   );
