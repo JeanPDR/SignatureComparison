@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import UploadForm from './UploadForm';
-import SignatureCanvas from './SignatureCanvas';
-import Result from './Result';
-import { compareSignatures } from './signatureComparison';
+import UploadForm from './Pages/UploadForm';
+import SignatureCanvas from './Pages/SignatureCanvas';
+import Result from './Pages/Result';
+import { compareSignatures } from './Pages/SignatureComparison';
 
 function App() {
   const [images, setImages] = useState([]);
